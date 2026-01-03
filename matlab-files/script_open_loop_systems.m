@@ -72,6 +72,36 @@ for i=1:NUM_OF_FLIGHT_CONDS
     FC(i).name = nameString;
 end
 
+%% Plot all open-loop poles (same marker, different colors)
+
+figure; hold on; grid on; box on;
+
+colors = lines(NUM_OF_FLIGHT_CONDS);   % distinct colors
+
+for i = 1:NUM_OF_FLIGHT_CONDS
+    % compute poles
+    poles_i = eig(FC(i).A);
+
+    % plot poles (same marker 'x', different color)
+    plot(real(poles_i), imag(poles_i), 'x', ...
+        'Color', colors(i,:), ...
+        'LineWidth', 2.0, ...
+        'MarkerSize', 10, ...
+        'DisplayName', sprintf('FC%d', i));
+end
+
+xlabel('Real Axis', 'Interpreter', 'latex');
+ylabel('Imaginary Axis', 'Interpreter', 'latex');
+title('Open-Loop Pole Locations for All Flight Conditions', ...
+    'Interpreter', 'latex', 'FontSize', 14);
+xline(0, '--k', 'LineWidth', 1, 'HandleVisibility', 'off');
+yline(0, '--k', 'LineWidth', 1, 'HandleVisibility', 'off');
+
+axis equal;
+legend('Location','best');
+
+hold off;
+
 %% save data
 for i = 1:NUM_OF_FLIGHT_CONDS
     fileName = sprintf("FC%d.mat", i);
