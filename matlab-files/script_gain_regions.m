@@ -1,298 +1,34 @@
-%% Ackermann Controller Parameter Space Analysis - All Flight Conditions
-% This script computes and plots admissible gain regions for FC1, FC2, FC3, and FC4.
+%% @file script_gain_regions.m
+% @brief    Robust Admissible Gain Region Analysis for F4-E Aircraft
+%
+% @details  This script performs a parameter space analysis using the D-Decomposition 
+%           method to determine the robust admissible controller gains (knz, kq). 
+%           It incorporates MIL-F-8785C flying quality requirements including 
+%           damping ratios, natural frequency boundaries, and structural limits 
+%           across four critical flight conditions (FC1-FC4).
 
-%% Section 1: Admissible Gain Region for Flight Condition 1
-% Load FC1 data
-fileName1 = "FC1.mat";
-data1 = load(fullfile("data", fileName1));
-A1 = data1.FC1.A; b1 = data1.FC1.B;
-wa1 = 2.02; 
+sigma_actuator = -70; % Structural/Actuator frequency limit
 
-figure('Name', 'Admissible Gain Region for Flight Condition 1');
-hold on; grid on;
+% Flight Data Matrix: [wa, wb, FC_index]
+fc_params = [2.02, 7.23, 1;   % FC1
+             3.50, 12.6, 2;   % FC2
+             2.19, 7.86, 3;   % FC3
+             3.29, 11.8, 4];  % FC4
 
-% Boundary b-c: Damping Limit (zeta = 0.35)
-w_vec = linspace(1, 40, 1500); 
-knz_bc = []; kq_bc = [];
-
-for w = w_vec
-    s_val = -0.35*w + 1i*w*sqrt(1-0.35^2);
-    [knz, kq] = solve_k_plane(s_val, A1, b1);
+for i = 1:size(fc_params, 1)
+    wa = fc_params(i,1); wb = fc_params(i,2); idx = fc_params(i,3);
     
-    if ~isnan(knz) && knz < 0 && kq < 0
-        K_test = [knz, kq, 0]; 
-        poles = eig(A1 - b1*K_test);
-        real_poles = poles(abs(imag(poles)) < 1e-4);
-        
-        if any(real_poles <= -12.6 & real_poles >= -70.5)
-            knz_bc = [knz_bc; knz]; 
-            kq_bc = [kq_bc; kq];
-        end
-    end
-end
-
-plot(knz_bc, kq_bc, 'b', 'LineWidth', 2, 'DisplayName', 'b-c (\zeta=0.35)');
-
-% Boundary a-b: Natural Frequency Limit (omega = 2.02)
-zeta_vec = linspace(0.35, 1, 500);
-knz_ab = []; kq_ab = [];
-
-for z = zeta_vec
-    s_val = -z*wa1 + 1i*wa1*sqrt(1-z^2);
-    [knz, kq] = solve_k_plane(s_val, A1, b1);
+    % Load flight condition data
+    data = load(fullfile("data", sprintf("FC%d.mat", idx)));
+    A = data.(sprintf("FC%d", idx)).A; b = data.(sprintf("FC%d", idx)).B;
     
-    if ~isnan(knz) && knz < 0 && kq < 0
-        knz_ab = [knz_ab; knz]; 
-        kq_ab = [kq_ab; kq];
-    end
-end
-
-plot(knz_ab, kq_ab, 'r', 'LineWidth', 2, 'DisplayName', ['a-b (\omega=',num2str(wa1),')']);
-
-% Real Root Boundaries (sigma = -70 and -12.6)
-knz_range = linspace(-0.4, 0.05, 1000);
-sigmas = [-70, -12.6]; colors = {'g', 'm'};
-names = {'c-d (\sigma=-70)', 'd-e (\sigma=-12.6)'};
-
-for i = 1:length(sigmas)
-    Phi = sigmas(i)*eye(3) - A1; v = adjoint(Phi)*b1;
-    kq_line = -(det(Phi) + knz_range * v(1)) / v(2);
-    mask = kq_line <= 0.1 & kq_line >= -3.5;
+    figure('Name', ['Admissible Gain Region for FC', num2str(idx)]);
+    hold on; grid on;
     
-    if any(mask)
-        plot(knz_range(mask), kq_line(mask), colors{i}, 'LineWidth', 1.5, 'DisplayName', names{i}); 
-    end
-end
-
-% Plot Settings
-xlim([-0.3 0]); ylim([-3 0.1]);
-set(gca, 'XAxisLocation', 'top', 'YAxisLocation', 'right', 'XDir', 'normal', 'YDir', 'normal');
-xlabel('$k_{N_z}$', 'Interpreter', 'latex', 'FontSize', 12);
-ylabel('$k_q$', 'Interpreter', 'latex', 'FontSize', 12);
-title('Admissible Gain Region for Flight Condition 1', 'Interpreter', 'latex', 'FontSize', 14);
-legend('Location', 'best');
-
-%% Section 2: Admissible Gain Region for Flight Condition 2
-% Load FC2 data
-fileName2 = "FC2.mat";
-data2 = load(fullfile("data", fileName2));
-A2 = data2.FC2.A; b2 = data2.FC2.B;
-wa2 = 3.50; 
-
-figure('Name', 'Admissible Gain Region for Flight Condition 2');
-hold on; grid on;
-
-% Boundary b-c: Damping Limit (zeta = 0.35)
-w_vec = linspace(1, 40, 1500); 
-knz_bc = []; kq_bc = [];
-
-for w = w_vec
-    s_val = -0.35*w + 1i*w*sqrt(1-0.35^2);
-    [knz, kq] = solve_k_plane(s_val, A2, b2);
-    
-    if ~isnan(knz) && knz < 0 && kq < 0
-        K_test = [knz, kq, 0]; 
-        poles = eig(A2 - b2*K_test);
-        real_poles = poles(abs(imag(poles)) < 1e-4);
-        
-        if any(real_poles <= -12.6 & real_poles >= -70.5)
-            knz_bc = [knz_bc; knz]; 
-            kq_bc = [kq_bc; kq];
-        end
-    end
-end
-
-plot(knz_bc, kq_bc, 'b', 'LineWidth', 2, 'DisplayName', 'b-c (\zeta=0.35)');
-
-% Boundary a-b: Natural Frequency Limit (omega = 3.50)
-zeta_vec = linspace(0.35, 1, 500);
-knz_ab = []; kq_ab = [];
-
-for z = zeta_vec
-    s_val = -z*wa2 + 1i*wa2*sqrt(1-z^2);
-    [knz, kq] = solve_k_plane(s_val, A2, b2);
-    
-    if ~isnan(knz) && knz < 0 && kq < 0
-        knz_ab = [knz_ab; knz]; 
-        kq_ab = [kq_ab; kq];
-    end
-end
-
-plot(knz_ab, kq_ab, 'r', 'LineWidth', 2, 'DisplayName', ['a-b (\omega=',num2str(wa2),')']);
-
-% Real Root Boundaries
-for i = 1:length(sigmas)
-    Phi = sigmas(i)*eye(3) - A2; v = adjoint(Phi)*b2;
-    kq_line = -(det(Phi) + knz_range * v(1)) / v(2);
-    mask = kq_line <= 0.1 & kq_line >= -3.5;
-    
-    if any(mask)
-        plot(knz_range(mask), kq_line(mask), colors{i}, 'LineWidth', 1.5, 'DisplayName', names{i}); 
-    end
-end
-
-% Plot Settings
-xlim([-0.3 0]); ylim([-3 0.1]);
-set(gca, 'XAxisLocation', 'top', 'YAxisLocation', 'right', 'XDir', 'normal', 'YDir', 'normal');
-xlabel('$k_{N_z}$', 'Interpreter', 'latex', 'FontSize', 12);
-ylabel('$k_q$', 'Interpreter', 'latex', 'FontSize', 12);
-title('Admissible Gain Region for Flight Condition 2', 'Interpreter', 'latex', 'FontSize', 14);
-legend('Location', 'best');
-
-%% Section 3: Admissible Gain Region for Flight Condition 3
-% Load FC3 data
-fileName3 = "FC3.mat";
-data3 = load(fullfile("data", fileName3));
-A3 = data3.FC3.A; b3 = data3.FC3.B;
-wa3 = 2.19; 
-
-figure('Name', 'Admissible Gain Region for Flight Condition 3');
-hold on; grid on;
-
-% Boundary b-c: Damping Limit (zeta = 0.35)
-w_vec = linspace(1, 40, 1500); 
-knz_bc = []; kq_bc = [];
-
-for w = w_vec
-    s_val = -0.35*w + 1i*w*sqrt(1-0.35^2);
-    [knz, kq] = solve_k_plane(s_val, A3, b3);
-    
-    if ~isnan(knz) && knz < 0 && kq < 0
-        K_test = [knz, kq, 0]; 
-        poles = eig(A3 - b3*K_test);
-        real_poles = poles(abs(imag(poles)) < 1e-4);
-        
-        if any(real_poles <= -12.6 & real_poles >= -70.5)
-            knz_bc = [knz_bc; knz]; 
-            kq_bc = [kq_bc; kq];
-        end
-    end
-end
-
-plot(knz_bc, kq_bc, 'b', 'LineWidth', 2, 'DisplayName', 'b-c (\zeta=0.35)');
-
-% Boundary a-b: Natural Frequency Limit (omega = 2.19)
-zeta_vec = linspace(0.35, 1, 500);
-knz_ab = []; kq_ab = [];
-
-for z = zeta_vec
-    s_val = -z*wa3 + 1i*wa3*sqrt(1-z^2);
-    [knz, kq] = solve_k_plane(s_val, A3, b3);
-    
-    if ~isnan(knz) && knz < 0 && kq < 0
-        knz_ab = [knz_ab; knz]; 
-        kq_ab = [kq_ab; kq];
-    end
-end
-
-plot(knz_ab, kq_ab, 'r', 'LineWidth', 2, 'DisplayName', ['a-b (\omega=',num2str(wa3),')']);
-
-% Real Root Boundaries
-for i = 1:length(sigmas)
-    Phi = sigmas(i)*eye(3) - A3; v = adjoint(Phi)*b3;
-    kq_line = -(det(Phi) + knz_range * v(1)) / v(2);
-    mask = kq_line <= 0.1 & kq_line >= -3.5;
-    
-    if any(mask)
-        plot(knz_range(mask), kq_line(mask), colors{i}, 'LineWidth', 1.5, 'DisplayName', names{i}); 
-    end
-end
-
-% Plot Settings
-xlim([-0.3 0]); ylim([-3 0.1]);
-set(gca, 'XAxisLocation', 'top', 'YAxisLocation', 'right', 'XDir', 'normal', 'YDir', 'normal');
-xlabel('$k_{N_z}$', 'Interpreter', 'latex', 'FontSize', 12);
-ylabel('$k_q$', 'Interpreter', 'latex', 'FontSize', 12);
-title('Admissible Gain Region for Flight Condition 3', 'Interpreter', 'latex', 'FontSize', 14);
-legend('Location', 'best');
-
-%% Section 4: Admissible Gain Region for Flight Condition 4
-% Load FC4 data
-fileName4 = "FC4.mat";
-data4 = load(fullfile("data", fileName4));
-A4 = data4.FC4.A; b4 = data4.FC4.B;
-wa4 = 3.29; 
-
-figure('Name', 'Admissible Gain Region for Flight Condition 4');
-hold on; grid on;
-
-% Boundary b-c: Damping Limit (zeta = 0.35)
-w_vec = linspace(1, 120, 5000); 
-knz_bc = []; kq_bc = [];
-
-for w = w_vec
-    s_val = -0.35*w + 1i*w*sqrt(1-0.35^2);
-    [knz, kq] = solve_k_plane(s_val, A4, b4);
-    
-    if ~isnan(knz) && knz < 0.05 && kq < 0.05
-        K_test = [knz, kq, 0]; 
-        poles = eig(A4 - b4*K_test);
-        real_poles = poles(abs(imag(poles)) < 1e-4);
-        
-        if any(real_poles <= -12.5 & real_poles >= -70.5)
-            knz_bc = [knz_bc; knz]; 
-            kq_bc = [kq_bc; kq];
-        end
-    end
-end
-
-plot(knz_bc, kq_bc, 'b', 'LineWidth', 2, 'DisplayName', 'b-c (\zeta=0.35)');
-
-% Boundary a-b: Natural Frequency Limit (omega = 3.29)
-zeta_vec = linspace(0.1, 1, 1500); 
-knz_ab = []; kq_ab = [];
-
-for z = zeta_vec
-    s_val = -z*wa4 + 1i*wa4*sqrt(1-z^2);
-    [knz, kq] = solve_k_plane(s_val, A4, b4);
-    
-    if ~isnan(knz) && knz <= 0.05 && kq <= 0.05
-        knz_ab = [knz_ab; knz]; 
-        kq_ab = [kq_ab; kq];
-    end
-end
-
-if ~isempty(knz_ab), plot(knz_ab, kq_ab, 'r', 'LineWidth', 2, 'DisplayName', ['a-b (\omega=',num2str(wa4),')']); end
-
-% Real Root Boundaries
-knz_range4 = linspace(-0.6, 0.1, 2500);
-
-for i = 1:length(sigmas)
-    Phi = sigmas(i)*eye(3) - A4; v = adjoint(Phi)*b4;
-    kq_line = -(det(Phi) + knz_range4 * v(1)) / v(2);
-    mask = kq_line <= 0.1 & kq_line >= -3.5;
-    
-    if any(mask)
-        plot(knz_range4(mask), kq_line(mask), colors{i}, 'LineWidth', 1.5, 'DisplayName', names{i}); 
-    end
-end
-
-% Plot Settings
-xlim([-0.4 0]); ylim([-3.5 0.1]);
-set(gca, 'XAxisLocation', 'top', 'YAxisLocation', 'right', 'XDir', 'normal', 'YDir', 'normal');
-xlabel('$k_{N_z}$', 'Interpreter', 'latex', 'FontSize', 12);
-ylabel('$k_q$', 'Interpreter', 'latex', 'FontSize', 12);
-title('Admissible Gain Region for Flight Condition 4', 'Interpreter', 'latex', 'FontSize', 14);
-legend('Location', 'best');
-
-%% Section 5: Robust Admissible Region (Rnom) - Final Intersection
-% Dynamically load all .mat files into a single struct array
-for k = 1:4
-    temp_data = load(fullfile("data", sprintf("FC%d.mat", k)));
-    FC(k) = temp_data.(sprintf("FC%d", k));
-end
-
-figure('Name', 'Robust Admissible Region - Intersection');
-hold on; grid on;
-
-% 1. Plot Damping Boundaries (zeta = 0.35) for all 4 Flight Conditions
-colors = {'r', 'b', 'g', 'm'};
-
-for i = 1:4
-    A = FC(i).A; b = FC(i).B;
-    w_vec = linspace(1, 60, 3000); 
-    knz_vals = []; kq_vals = [];
-    
+    % --- 1. Boundary: Damping Limit (zeta = 0.35) with Ghost Line Filter ---
+    % Filtering ensures the third (real) pole stays within MIL-spec limits
+    w_vec = linspace(wa, wb, 3000); 
+    knz_bc = []; kq_bc = [];
     for w = w_vec
         s_val = -0.35*w + 1i*w*sqrt(1-0.35^2);
         [knz, kq] = solve_k_plane(s_val, A, b);
@@ -300,48 +36,131 @@ for i = 1:4
         if ~isnan(knz) && knz < 0.1 && kq < 0.1
             K_test = [knz, kq, 0]; 
             poles = eig(A - b*K_test);
-            % Ghost line filter: Ensure the real pole is within stability limits
             real_poles = poles(abs(imag(poles)) < 1e-4);
             
-            if any(real_poles <= -12.5 & real_poles >= -70.5)
-                knz_vals = [knz_vals; knz]; 
-                kq_vals = [kq_vals; kq];
+            % Check if the parasitic real pole is between -wb and -70
+            if any(real_poles <= -wb & real_poles >= sigma_actuator)
+                knz_bc = [knz_bc; knz]; 
+                kq_bc = [kq_bc; kq];
             end
         end
     end
+    plot(knz_bc, kq_bc, 'b', 'LineWidth', 2, 'DisplayName', '\zeta=0.35');
+
+    % --- 2. Boundary: Lower Natural Frequency Arc (omega_a) ---
+    zeta_vec = linspace(0.35, 1, 1000);
+    knz_wa = []; kq_wa = [];
+    for z = zeta_vec
+        s_val = -z*wa + 1i*wa*sqrt(1-z^2);
+        [knz, kq] = solve_k_plane(s_val, A, b);
+        if ~isnan(knz), knz_wa = [knz_wa; knz]; kq_wa = [kq_wa; kq]; end
+    end
+    plot(knz_wa, kq_wa, 'r', 'LineWidth', 2, 'DisplayName', ['\omega_a=', num2str(wa)]);
+
+    % --- 3. Boundary: Upper Natural Frequency Arc (omega_b) ---
+    knz_wb_arc = []; kq_wb_arc = [];
+    for z = zeta_vec
+        s_val = -z*wb + 1i*wb*sqrt(1-z^2);
+        [knz, kq] = solve_k_plane(s_val, A, b);
+        if ~isnan(knz), knz_wb_arc = [knz_wb_arc; knz]; kq_wb_arc = [kq_wb_arc; kq]; end
+    end
+    plot(knz_wb_arc, kq_wb_arc, 'm', 'LineWidth', 2, 'DisplayName', ['\omega_b=', num2str(wb)]);
+
+    % --- 4. Boundary: Real Root Boundaries (RRB) ---
+    knz_range = linspace(-0.5, 0.1, 2000);
+    % Sigma = -wb and Sigma = -70 (Structural limit)
+    sigmas = [-wb, sigma_actuator];
+    sigma_colors = {'m', 'g'};
+    sigma_labels = {['\sigma=-\omega_b'], '\sigma=-70'};
     
-    plot(knz_vals, kq_vals, colors{i}, 'LineWidth', 1.5, 'DisplayName', ['FC' num2str(i) ' \zeta=0.35']);
+    for s_idx = 1:length(sigmas)
+        Phi = sigmas(s_idx)*eye(3) - A; v = adjoint(Phi)*b;
+        kq_line = -(det(Phi) + knz_range * v(1)) / v(2);
+        mask = kq_line <= 0.1 & kq_line >= -4;
+        if any(mask), plot(knz_range(mask), kq_line(mask), 'Color', sigma_colors{s_idx}, ...
+            'LineStyle', '--', 'LineWidth', 1.2, 'DisplayName', sigma_labels{s_idx}); end
+    end
+
+    % Applying plot settings per user preference
+    set(gca, 'XAxisLocation', 'top', 'YAxisLocation', 'right', 'XDir', 'normal', 'YDir', 'normal');
+    xlabel('$k_{N_z}$', 'Interpreter', 'latex', 'FontSize', 12);
+    ylabel('$k_q$', 'Interpreter', 'latex', 'FontSize', 12);
+    title(['Admissible Gain Region for FC', num2str(idx)], 'Interpreter', 'latex', 'FontSize', 14);
+    xlim([-0.4 0.05]); ylim([-3.5 0.1]); legend('Location', 'best');
 end
 
-% 2. Plot Critical Sigma Boundaries as SOLID Lines
-knz_range = linspace(-0.4, 0.1, 1000);
+%% Section 5: Robust Admissible Region (Rnom) - Final Visualization with Values
+% This script displays the intersection of all FC boundaries with frequency values in legend.
 
-% a) FC2 Actuator Limit: sigma = -70 (Solid Black)
-v2 = adjoint(-70*eye(3) - FC(2).A) * FC(2).B;
-kq_s70 = -(det(-70*eye(3)-FC(2).A) + knz_range * v2(1)) / v2(2);
-plot(knz_range, kq_s70, 'k', 'LineWidth', 2, 'DisplayName', '\sigma_2 = -70');
+figure('Name', 'Robust Admissible Region - All FC Boundaries');
+hold on; grid on;
 
-% b) FC1 Stability Limit: sigma = -7.23 (Solid Dark Gray)
-v1_low = adjoint(-7.23*eye(3) - FC(1).A) * FC(1).B;
-kq_s723 = -(det(-7.23*eye(3)-FC(1).A) + knz_range * v1_low(1)) / v1_low(2);
-plot(knz_range, kq_s723, 'Color', [0.3 0.3 0.3], 'LineWidth', 2, 'DisplayName', '\sigma_1 = -7.23');
+% 1. Universal and Adaptive Constraints
+sigma_actuator = -70; 
+wa_vec = [2.02, 3.50, 2.19, 3.29]; % sigma_min limits for FC1-4
+wb_vec = [7.23, 12.6, 7.86, 11.8]; % sigma_max limits for FC1-4
+fc_colors = {'r', 'b', 'g', 'm'};    
 
-% c) FC1 Speed/Landing Limit: sigma = -2.02 (Solid Light Gray)
-v1_high = adjoint(-2.02*eye(3) - FC(1).A) * FC(1).B;
-kq_s202 = -(det(-2.02*eye(3)-FC(1).A) + knz_range * v1_high(1)) / v1_high(2);
-plot(knz_range, kq_s202, 'Color', [0.6 0.6 0.6], 'LineWidth', 2, 'DisplayName', '\sigma_1 = -2.02');
+% Ensure FC data structure is loaded
+for k = 1:4
+    temp = load(fullfile("data", sprintf("FC%d.mat", k)));
+    FC_int(k) = temp.(sprintf("FC%d", k));
+end
 
-% 3. Mark Design Point Q1
-plot(-0.115, -0.8, 'rp', 'MarkerSize', 12, 'MarkerFaceColor', 'r', 'DisplayName', 'Design Point Q_1');
+% 2. Plotting loop for all 4 Flight Conditions
+knz_range = linspace(-0.3, 0.05, 1500);
+
+for i = 1:4
+    A = FC_int(i).A; b = FC_int(i).B;
+    curr_c = fc_colors{i};
+    wa = wa_vec(i); wb = wb_vec(i);
+    
+    % --- A) Damping Boundary (zeta = 0.35) ---
+    knz_z = []; kq_z = [];
+    for w = linspace(wa, wb, 1500)
+        s_val = -0.35*w + 1i*w*sqrt(1-0.35^2);
+        [knz, kq] = solve_k_plane(s_val, A, b);
+        if ~isnan(knz) && knz < 0.1 && kq < 0.1
+            % Ghost-line filter check
+            K_t = [knz, kq, 0]; poles = eig(A - b*K_t);
+            real_p = poles(abs(imag(poles)) < 1e-4);
+            if any(real_p <= -wb & real_p >= sigma_actuator)
+                knz_z = [knz_z; knz]; kq_z = [kq_z; kq];
+            end
+        end
+    end
+    % Displaying zeta and frequency range in legend
+    plot(knz_z, kq_z, 'Color', curr_c, 'LineWidth', 2, ...
+        'DisplayName', ['FC', num2str(i), ': \zeta=0.35, \omega \in [', num2str(wa), ',', num2str(wb), ']']);
+
+    % --- B) Sigma_b Boundary (sigma = -wb) ---
+    v_b = adjoint(-wb*eye(3) - A) * b;
+    kq_wb = -(det(-wb*eye(3)-A) + knz_range * v_b(1)) / v_b(2);
+    plot(knz_range, kq_wb, 'Color', curr_c, 'LineStyle', '--', 'LineWidth', 1.2, ...
+        'DisplayName', ['FC', num2str(i), ': \sigma_b = -', num2str(wb)]);
+
+    % --- C) Sigma_a Boundary (sigma = -wa) ---
+    v_a = adjoint(-wa*eye(3) - A) * b;
+    kq_wa = -(det(-wa*eye(3)-A) + knz_range * v_a(1)) / v_a(2);
+    plot(knz_range, kq_wa, 'Color', curr_c, 'LineStyle', ':', 'LineWidth', 1.2, ...
+        'DisplayName', ['FC', num2str(i), ': \sigma_a = -', num2str(wa)]);
+end
+
+% 3. Global Structural Limit (sigma = -70)
+v_act = adjoint(sigma_actuator*eye(3) - FC_int(2).A) * FC_int(2).B;
+kq_s70 = -(det(sigma_actuator*eye(3)-FC_int(2).A) + knz_range * v_act(1)) / v_act(2);
+plot(knz_range, kq_s70, 'k', 'LineWidth', 2.5, 'DisplayName', '\sigma_{actuator} = -70');
+
+% 4. Mark Robust Design Point Q1
+plot(-0.115, -0.8, 'rp', 'MarkerSize', 15, 'MarkerFaceColor', 'r', 'DisplayName', 'Design Point $Q_1$');
 text(-0.11, -0.7, '$Q_1$', 'Interpreter', 'latex', 'FontSize', 12, 'FontWeight', 'bold');
 
-% Plot Settings
-xlim([-0.25 0]); ylim([-2 0]);
+% Final Plot Settings [User Custom Preference]
 set(gca, 'XAxisLocation', 'top', 'YAxisLocation', 'right', 'XDir', 'normal', 'YDir', 'normal');
 xlabel('$k_{N_z}$', 'Interpreter', 'latex', 'FontSize', 12);
 ylabel('$k_q$', 'Interpreter', 'latex', 'FontSize', 12);
-title('Robust Admissible Region for All Flight Conditions ($R_{nom}$)', 'Interpreter', 'latex', 'FontSize', 14);
-legend('Location', 'best');
+title('Robust Admissible Region ($R_{nom}$): Comprehensive Analysis', 'Interpreter', 'latex', 'FontSize', 14);
+xlim([-0.25 0]); ylim([-1.75 0]); legend('Location', 'bestoutside', 'FontSize', 8);
 
 %% Helper Function
 function [knz, kq] = solve_k_plane(s, A, b)

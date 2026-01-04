@@ -1,8 +1,11 @@
-%% Closed-Loop Pole Analysis with MIL-Spec Frequency Arcs
-% This script visualizes the CL poles for each FC at Q1, showing 
-% damping and natural frequency boundaries as per military standards.
-
-%% Required Pole Regions (Gamma) Visualization
+%% @file script_closed_loop_poles.m
+% @brief    Closed-Loop Stability and Pole-Zero Mapping for F4-E
+%
+% @details  This script evaluates the effectiveness of the robust design point Q1 
+%           by mapping the closed-loop poles against the required stability 
+%           regions (Gamma). It visualizes the MIL-F-8785C requirements as 
+%           damping lines and frequency arcs (wa, wb), ensuring the aircraft 
+%           short-period dynamics meet specific flying quality standards.
 
 % --- SPECIFICATIONS ---
 zeta_min = 0.35;
